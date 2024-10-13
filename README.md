@@ -1,5 +1,5 @@
 # RemapProtectedClass
-Remaps a class/struct with SEC_NO_CHANGE, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered or modified after being initialized at runtime. Works with heap memory when creating class or structure pointers. As opposed to working on static memory/image sections, this works for variables which can be set at run-time. The technique works for both 32-bit and 64-bit compilations.
+Remaps a class/struct with SEC_NO_CHANGE, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered or modified after being initialized at runtime. Works with heap memory when creating class or structure pointers. As opposed to working on static memory/image sections, this works for variables which can be set at run-time. The technique works for both 32-bit and 64-bit compilations. This is an experimental technique and should only be seen as a proof of concept currently.
 
 ## How it works:
 1. A class or structure pointer is first created, and its member variables are set to some values.
@@ -12,6 +12,10 @@ Remaps a class/struct with SEC_NO_CHANGE, protecting it from memory modification
 8. The view is later unmapped when you are finished with the class  
 
 To protect a class, call `RemapClassToProtectedClass`. When you are finished with the class, simply call `UnmapProtectedClass`.
+
+## Where this shouldn't be used:
+- Classes using inheritance or virtual functions/vtables
+- Complex behaviors such as polymorphism
    
 Thanks to changeofpace for the original self-remapping-code example, as this project is an application of it
 
