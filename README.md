@@ -1,5 +1,5 @@
 # RemapProtectedClass
-Remaps a class/struct with SEC_NO_CHANGE, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered or modified after being initialized at runtime. Works with heap memory when creating class or structure pointers. As opposed to working on static memory/image sections, this works for variables which can be set at run-time.  
+Remaps a class/struct with SEC_NO_CHANGE, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered or modified after being initialized at runtime. Works with heap memory when creating class or structure pointers. As opposed to working on static memory/image sections, this works for variables which can be set at run-time. The technique works for both 32-bit and 64-bit compilations.
 
 ## How it works:
 1. A class or structure pointer is first created, and its member variables are set to some values.
