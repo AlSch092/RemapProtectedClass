@@ -4,22 +4,22 @@
 
 #include "RemapClass.hpp"
 
-#pragma pack(push, 1) // Disable padding (pack all members without alignment padding) for good measure
+#pragma pack(push, 1) // Disable padding for good measure
 class ProtectedClass
 {
 public:
 
     UINT32 GameTickSpeed;
     FLOAT GameEngineGravity;
-    BOOL Invincible; 
+    BOOL Invincible;
 
     //...insert other sensitive variables which should not be changed after theyve been initialized
 
-    ProtectedClass()
+    void PrintMembers() //example function showing class functions can still be called and `this` can be used after mapping
     {
-        GameTickSpeed = 100; //memory should be set to 0 for all these, then need to be set to ViewBase address afterwards
-        GameEngineGravity = 500.0f;
-        Invincible = TRUE; //set to TRUE for the sake of easily viewing a '1' in memory instead of a '0'
+        printf("protTest->GameTickSpeed: %d\n", this->GameTickSpeed);
+        printf("protTest->GameEngineGravity: %f\n", this->GameEngineGravity);
+        printf("protTest->Invincible: %d\n", this->Invincible);
     }
 };
 #pragma pack(pop)
@@ -45,15 +45,15 @@ BOOL RemapClassToProtectedClass(T& classPtr)
     cbSectionSize.QuadPart = sectionSize;
 
     NTSTATUS ntstatus = NtCreateSection(&hSection, SECTION_ALL_ACCESS, NULL, &cbSectionSize, PAGE_EXECUTE_READWRITE, SEC_COMMIT | SEC_NO_CHANGE, NULL);
-    
+
     if (!NT_SUCCESS(ntstatus))
     {
         printf("NtCreateSection failed: 0x%X\n", ntstatus);
         return FALSE;
     }
 
-    ntstatus = NtMapViewOfSection(hSection,NtCurrentProcess(),&pViewBase,0,PAGE_SIZE,&cbSectionOffset,&cbViewSize,ViewUnmap,0,PAGE_READWRITE); //create a memory-mapped view of the section
-  
+    ntstatus = NtMapViewOfSection(hSection, NtCurrentProcess(), &pViewBase, 0, PAGE_SIZE, &cbSectionOffset, &cbViewSize, ViewUnmap, 0, PAGE_READWRITE); //create a memory-mapped view of the section
+
     memcpy((void*)pViewBase, (const void*)classPtr, sizeof(*classPtr)); //copy class member data to the view
 
 #ifdef _WIN64
@@ -73,9 +73,10 @@ BOOL RemapClassToProtectedClass(T& classPtr)
 #else
     printf("Mapped as protected at: %X (unmodifiable memory)\n", (UINT_PTR)pViewBase);
 #endif
+   
     delete classPtr; //delete original class memory as its no longer needed
 
-    classPtr = (T)pViewBase; //Set class pointer to viewBase, our class is now protected and cannot have its memory changed or page protections modified
+    classPtr = (T)pViewBase; //Set class pointer to viewBase, our class is now 'protected' and cannot have its memory changed or page protections modified
 
     return TRUE;
 }
@@ -91,18 +92,20 @@ void UnmapProtectedClass(LPCVOID ProtectedClass)
 int main()
 {
     ProtectedClass* protTest = new ProtectedClass(); //allocates a class object on the heap, outside of module's image
-    
+
 #ifdef _WIN64
     printf("protTest original address: %llX\n", (UINT_PTR)protTest);
 #else
     printf("protTest original address: %X\n", (UINT_PTR)protTest);
 #endif
 
+    protTest->GameTickSpeed = 100;
+    protTest->GameEngineGravity = 500.0f;
+    protTest->Invincible = TRUE; //for the sake of easily viewing a '1' in memory instead of a '0'
+
     RemapClassToProtectedClass(protTest); //remap protTest as a protected view
-    
-    printf("protTest->GameTickSpeed: %d\n", protTest->GameTickSpeed);
-    printf("protTest->GameEngineGravity: %f\n", protTest->GameEngineGravity);
-    printf("protTest->Invincible: %d\n", protTest->Invincible);
+
+    protTest->PrintMembers(); //class-member call example after protecting class
 
     UnmapProtectedClass(protTest); //free memory through unmapping
 
