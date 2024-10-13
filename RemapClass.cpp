@@ -106,6 +106,7 @@ int main()
     RemapClassToProtectedClass(protTest); //remap protTest as a protected view
 
     //...attempting to write to protTest members will now throw a write violation, otherwise you can verify manually in a debugger that members cannot be written
+    // if you need to edit the values of the protected class, you can copy its object to a new class pointer, edit member values, then call `RemapClassToProtectedClass` on the new pointer and unmap the old one.
     
     protTest->PrintMembers(); //class-member call example after protecting class
 
