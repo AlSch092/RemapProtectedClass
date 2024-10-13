@@ -26,7 +26,7 @@ public:
 
 /*
     RemapClassToProtectedClass - protects a class/structure from memory writes and having its page protections modified
-    return `true` on success
+    return `true` on success. deletes the class object after mapping the view, the mapped view should be freed by you when you're finished with it
 */
 template<typename T>
 BOOL RemapClassToProtectedClass(T& classPtr)
@@ -105,6 +105,8 @@ int main()
 
     RemapClassToProtectedClass(protTest); //remap protTest as a protected view
 
+    //...attempting to write to protTest members will now throw a write violation, otherwise you can verify manually in a debugger that members cannot be written
+    
     protTest->PrintMembers(); //class-member call example after protecting class
 
     UnmapProtectedClass(protTest); //free memory through unmapping
