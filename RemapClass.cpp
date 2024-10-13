@@ -1,9 +1,10 @@
 // RemapClass.cpp : By AlSch092 @ Github
 // Thanks to changeofpace @ Github for original self-remapping-code example
+// works for both  x86 and x64
 
 #include "RemapClass.hpp"
 
-#pragma pack(push, 1) // Disable padding (pack all members without alignment padding) - not neccessary for small structures
+#pragma pack(push, 1) // Disable padding (pack all members without alignment padding) for good measure
 class ProtectedClass
 {
 public:
@@ -51,9 +52,9 @@ BOOL RemapClassToProtectedClass(T& classPtr)
         return FALSE;
     }
 
-    ntstatus = NtMapViewOfSection(hSection,NtCurrentProcess(),&pViewBase,0,PAGE_SIZE,&cbSectionOffset,&cbViewSize,ViewUnmap,0,PAGE_READWRITE);
+    ntstatus = NtMapViewOfSection(hSection,NtCurrentProcess(),&pViewBase,0,PAGE_SIZE,&cbSectionOffset,&cbViewSize,ViewUnmap,0,PAGE_READWRITE); //create a memory-mapped view of the section
   
-    memcpy((void*)pViewBase, (const void*)classPtr, sizeof(*classPtr));
+    memcpy((void*)pViewBase, (const void*)classPtr, sizeof(*classPtr)); //copy class member data to the view
 
 #ifdef _WIN64
     printf("ViewBase at: %llX\n", (UINT_PTR)pViewBase);
@@ -61,16 +62,16 @@ BOOL RemapClassToProtectedClass(T& classPtr)
     printf("ViewBase at: %X\n", (UINT_PTR)pViewBase);
 #endif
 
-    ntstatus = NtUnmapViewOfSection(NtCurrentProcess(), pViewBase);
+    ntstatus = NtUnmapViewOfSection(NtCurrentProcess(), pViewBase); //unmap original view
 
-    ntstatus = NtMapViewOfSection(hSection, NtCurrentProcess(), &pViewBase, 0, 0, &cbSectionOffset, &cbViewSize, ViewUnmap, SEC_NO_CHANGE, PAGE_EXECUTE_READ);
+    ntstatus = NtMapViewOfSection(hSection, NtCurrentProcess(), &pViewBase, 0, 0, &cbSectionOffset, &cbViewSize, ViewUnmap, SEC_NO_CHANGE, PAGE_EXECUTE_READ); //remap with SEC_NO_CHANGE
 
     CloseHandle(hSection);
 
 #ifdef _WIN64
-    printf("2nd ViewBase at: %llX (unmodifiable memory)\n", (UINT_PTR)pViewBase);
+    printf("Mapped as protected at: %llX (unmodifiable memory)\n", (UINT_PTR)pViewBase);
 #else
-    printf("2nd ViewBase at: %X (unmodifiable memory)\n", (UINT_PTR)pViewBase);
+    printf("Mapped as protected at: %X (unmodifiable memory)\n", (UINT_PTR)pViewBase);
 #endif
     delete classPtr; //delete original class memory as its no longer needed
 
@@ -80,7 +81,7 @@ BOOL RemapClassToProtectedClass(T& classPtr)
 }
 
 /*
-    RemapClassToProtectedClass - UnmapViewOfFile wrapper
+    UnmapProtectedClass - UnmapViewOfFile wrapper
 */
 void UnmapProtectedClass(LPCVOID ProtectedClass)
 {
