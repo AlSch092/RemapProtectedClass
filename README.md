@@ -16,6 +16,9 @@ To protect a class, call `RemapClassToProtectedClass`. When you are finished wit
 ## Where this shouldn't be used:
 - Classes using inheritance or virtual functions/vtables
 - Complex behaviors such as polymorphism
+
+## Why this works:
+- Class/struct members are treated as offsets to the compiler, and we make a direct copy of the class object into our view, thus we can still access members since member offsets will be identical.
    
 Thanks to changeofpace for the original self-remapping-code example, as this project is an application of it
 
