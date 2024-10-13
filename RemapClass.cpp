@@ -15,7 +15,7 @@ public:
 
     //...insert other sensitive variables which should not be changed after theyve been initialized
 
-    void PrintMembers() //example function showing class functions can still be called and `this` can be used after mapping
+    void PrintMembers()
     {
         printf("protTest->GameTickSpeed: %d\n", this->GameTickSpeed);
         printf("protTest->GameEngineGravity: %f\n", this->GameEngineGravity);
