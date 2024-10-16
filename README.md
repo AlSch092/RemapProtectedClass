@@ -20,8 +20,16 @@ To protect a class, call `MapClassToProtectedClass`. When you are finished with 
 ## Why this works:
 - Class/struct members are treated as offsets to the compiler, and we make a direct copy of the class object into our view, thus we can still access members since member offsets will be identical.
 
-## Requirements:
+## Modifying values after mapping:
+- It is possible to change 'protected' member values if necessary:
+1. By creating a 2nd class object, and copying the first's members to the second
+2. Modifying any values you need to
+3. Then unmapping the first, and mapping the second one
+4. And lastly, set the first class pointer to the second one to give the illusion that values can be modified, which allows the user to continue to use the modified first pointer in their codebase.
+
+## Requirements & Warnings:
 - Make sure to link `ntdll.lib` under Linker -> Input before compiling.
+- Possibly dangerous in a multi-threaded scenario as we are manipulating pointers and memory on the fly; you may want to create critical sections when accessing members of the 'protected' class.
    
 Thanks to changeofpace for the original self-remapping-code example, as this project is an idea based off of it
 
