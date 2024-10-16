@@ -11,7 +11,7 @@ Remaps a class/struct with `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting i
 7. The class pointer's address is set to the mapped view, allowing you to access class members the same way as any normal class pointer
 8. The view is later unmapped when you are finished with the class  
 
-To protect a class, call `RemapClassToProtectedClass`. When you are finished with the class, simply call `UnmapProtectedClass`.
+To protect a class, call `MapClassToProtectedClass`. When you are finished with the class, simply call `UnmapProtectedClass`.
 
 ## Where this shouldn't be used:
 - Classes using inheritance or virtual functions/vtables
