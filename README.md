@@ -25,4 +25,5 @@ To protect a class, call `MapClassToProtectedClass`. When you are finished with 
    
 Thanks to changeofpace for the original self-remapping-code example, as this project is an application of it
 
-![Example](https://github.com/user-attachments/assets/d9374bd8-2773-4fed-ab97-297a63c01b43)
+![Example](https://github.com/user-attachments/assets/a9c66139-3f0a-4509-9337-b22c1cf50b67)
+
