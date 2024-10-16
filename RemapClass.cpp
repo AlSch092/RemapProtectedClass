@@ -17,19 +17,19 @@ public:
 
     void PrintMembers()
     {
-        printf("protTest->GameTickSpeed: %d\n", this->GameTickSpeed);
-        printf("protTest->GameEngineGravity: %f\n", this->GameEngineGravity);
-        printf("protTest->Invincible: %d\n", this->Invincible);
+        printf("ProtectedClass.GameTickSpeed: %d\n", this->GameTickSpeed);
+        printf("ProtectedClass.GameEngineGravity: %f\n", this->GameEngineGravity);
+        printf("ProtectedClass.Invincible: %d\n", this->Invincible);
     }
 };
 #pragma pack(pop)
 
 /*
-    RemapClassToProtectedClass - protects a class/structure from memory writes and having its page protections modified
+    MapClassToProtectedClass - protects a class/structure from memory writes and having its page protections modified
     return `true` on success. deletes the class object after mapping the view, the mapped view should be freed by you when you're finished with it
 */
 template<typename T>
-BOOL RemapClassToProtectedClass(T& classPtr)
+BOOL MapClassToProtectedClass(T& classPtr)
 {
     if (classPtr == nullptr)
         return FALSE;
@@ -73,7 +73,7 @@ BOOL RemapClassToProtectedClass(T& classPtr)
 #else
     printf("Mapped as protected at: %X (unmodifiable memory)\n", (UINT_PTR)pViewBase);
 #endif
-   
+
     delete classPtr; //delete original class memory as its no longer needed
 
     classPtr = (T)pViewBase; //Set class pointer to viewBase, our class is now 'protected' and cannot have its memory changed or page protections modified
@@ -84,9 +84,9 @@ BOOL RemapClassToProtectedClass(T& classPtr)
 /*
     UnmapProtectedClass - UnmapViewOfFile wrapper
 */
-void UnmapProtectedClass(LPCVOID ProtectedClass)
+bool UnmapProtectedClass(LPCVOID ProtectedClass)
 {
-    UnmapViewOfFile((LPCVOID)&ProtectedClass);
+    return UnmapViewOfFile((LPCVOID)ProtectedClass);
 }
 
 int main()
@@ -103,14 +103,40 @@ int main()
     protTest->GameEngineGravity = 500.0f;
     protTest->Invincible = TRUE; //for the sake of easily viewing a '1' in memory instead of a '0'
 
-    RemapClassToProtectedClass(protTest); //remap protTest as a protected view
+    MapClassToProtectedClass(protTest); //remap protTest as a protected view
 
     //...attempting to write to protTest members will now throw a write violation, otherwise you can verify manually in a debugger that members cannot be written
-    // if you need to edit the values of the protected class, you can copy its object to a new class pointer, edit member values, then call `RemapClassToProtectedClass` on the new pointer and unmap the old one.
-    
+    // if you need to edit the values of the protected class, you can copy its object to a new class pointer, edit those values, then call `MapClassToProtectedClass` on the new pointer and unmap the old one.
+
     protTest->PrintMembers(); //class-member call example after protecting class
 
-    UnmapProtectedClass(protTest); //free memory through unmapping
+    //example of 'changing values' - create a new class object as a copy of the old one, change values, then call MapClassToProtectedClass again
+    printf("========= Example of modifying values of protTest: ===========\n");
+
+    ProtectedClass* protTest_modified = new ProtectedClass(); //we will modify this pointer, map it as protected memory, and then set the first class pointer to this one to give the illusion of being able to still modify contents
+    memcpy((void*)protTest_modified, (const void*)protTest, sizeof(*protTest)); //copy class contents to new class object
+
+#ifdef _WIN64
+    printf("protTest_modified  address: %llX\n", (UINT_PTR)protTest_modified);
+#else
+    printf("protTest_modified  address: %X\n", (UINT_PTR)protTest_modified);
+#endif
+
+    protTest_modified->GameTickSpeed = 1337.0f; //...modify whichever member values you need
+    protTest_modified->GameEngineGravity = 123;
+
+    UnmapProtectedClass(protTest); // then free memory through unmapping - clear the original protected view since we're updating its values
+
+    MapClassToProtectedClass(protTest_modified); //often, this will map at the same address which the first class pointer was mapped at, convenient but not always guaranteed
+
+    protTest = protTest_modified; //set the original pointer to the new pointer, incase we need to continue using the original pointer in our code. remember that this must keep multithreading in mind and work atomically, you may want to use critical sections in code referencing these variables
+
+    protTest_modified = nullptr; //we no longer need the 2nd pointer since protTest will point to its address
+
+    protTest->PrintMembers(); //will now print the updated values - at this point, protTest == protTest_modified
+
+    UnmapProtectedClass(protTest); //free memory/unmap again, as we are finished with the program
+    protTest = nullptr; //cleanup
 
     system("pause");
     return 0;
