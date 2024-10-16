@@ -23,7 +23,7 @@ To protect a class, call `MapClassToProtectedClass`. When you are finished with 
 ## Requirements:
 - Make sure to link `ntdll.lib` under Linker -> Input before compiling.
    
-Thanks to changeofpace for the original self-remapping-code example, as this project is an application of it
+Thanks to changeofpace for the original self-remapping-code example, as this project is an idea based off of it
 
 ![Example](https://github.com/user-attachments/assets/a9c66139-3f0a-4509-9337-b22c1cf50b67)
 
