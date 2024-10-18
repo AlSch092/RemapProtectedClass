@@ -4,18 +4,18 @@
 
 #include "RemapClass.hpp"
 
-#pragma pack(push, 1) // Disable padding for good measure
-class ProtectedClass
+#pragma pack(push, 1) //disable padding for good measure...
+class ProtectedClass 
 {
 public:
-
     UINT32 GameTickSpeed;
     FLOAT GameEngineGravity;
     BOOL Invincible;
 
-    //...insert other sensitive variables which should not be changed after theyve been initialized
+    ProtectedClass(UINT32 tickSpeed, FLOAT gravity, BOOL invincible)
+        : GameTickSpeed(tickSpeed), GameEngineGravity(gravity), Invincible(invincible) {}
 
-    void PrintMembers()
+    void PrintMembers() const 
     {
         printf("ProtectedClass.GameTickSpeed: %d\n", this->GameTickSpeed);
         printf("ProtectedClass.GameEngineGravity: %f\n", this->GameEngineGravity);
@@ -24,119 +24,103 @@ public:
 };
 #pragma pack(pop)
 
-/*
-    MapClassToProtectedClass - protects a class/structure from memory writes and having its page protections modified
-    return `true` on success. deletes the class object after mapping the view, the mapped view should be freed by you when you're finished with it
-*/
-template<typename T>
-BOOL MapClassToProtectedClass(T& classPtr)
+
+class MappedMemory   //RAII class to handle memory mapping
 {
-    if (classPtr == nullptr)
-        return FALSE;
+private:
+    HANDLE hSection;
+    PVOID pViewBase;
+    SIZE_T size;
 
-    const SIZE_T sectionSize = sizeof(*classPtr);
-
-    PVOID pViewBase = NULL;
-    HANDLE hSection = NULL;
-    LARGE_INTEGER cbSectionSize = {};
-    LARGE_INTEGER cbSectionOffset = {};
-    SIZE_T cbViewSize = 0;
-
-    cbSectionSize.QuadPart = sectionSize;
-
-    NTSTATUS ntstatus = NtCreateSection(&hSection, SECTION_ALL_ACCESS, NULL, &cbSectionSize, PAGE_EXECUTE_READWRITE, SEC_COMMIT | SEC_NO_CHANGE, NULL);
-
-    if (!NT_SUCCESS(ntstatus))
+public:
+    MappedMemory(SIZE_T sectionSize) : hSection(nullptr), pViewBase(nullptr), size(sectionSize) 
     {
-        printf("NtCreateSection failed: 0x%X\n", ntstatus);
-        return FALSE;
+        LARGE_INTEGER sectionSizeLi = {};
+        sectionSizeLi.QuadPart = sectionSize;
+
+        NTSTATUS ntstatus = NtCreateSection(&hSection, SECTION_ALL_ACCESS, NULL, &sectionSizeLi, PAGE_EXECUTE_READWRITE, SEC_COMMIT | SEC_NO_CHANGE, NULL);
+        if (!NT_SUCCESS(ntstatus)) 
+        {
+            throw std::runtime_error("NtCreateSection failed");
+        }
+
+        SIZE_T viewSize = 0;
+        LARGE_INTEGER sectionOffset = {};
+
+        ntstatus = NtMapViewOfSection(hSection, NtCurrentProcess(), &pViewBase, 0, PAGE_SIZE, &sectionOffset, &viewSize, ViewUnmap, 0, PAGE_READWRITE);
+        if (!NT_SUCCESS(ntstatus)) 
+        {
+            CloseHandle(hSection);
+            throw std::runtime_error("NtMapViewOfSection failed");
+        }
+
+        printf("Viewbase at: %llX\n", (UINT64)pViewBase);
     }
 
-    ntstatus = NtMapViewOfSection(hSection, NtCurrentProcess(), &pViewBase, 0, PAGE_SIZE, &cbSectionOffset, &cbViewSize, ViewUnmap, 0, PAGE_READWRITE); //create a memory-mapped view of the section
+    
+    void Protect()  //protect the memory to make it non-writable
+    {
+        SIZE_T viewSize = 0;
+        LARGE_INTEGER sectionOffset = {};
+        NTSTATUS ntstatus = NtUnmapViewOfSection(NtCurrentProcess(), pViewBase); // unmap original view
 
-    memcpy((void*)pViewBase, (const void*)classPtr, sizeof(*classPtr)); //copy class member data to the view
+        ntstatus = NtMapViewOfSection(hSection, NtCurrentProcess(), &pViewBase, 0, 0, &sectionOffset, &viewSize, ViewUnmap, SEC_NO_CHANGE, PAGE_EXECUTE_READ); //map with SEC_NO_CHANGE
+        if (!NT_SUCCESS(ntstatus)) 
+        {
+            throw std::runtime_error("Failed to remap view as protected");
+        }
+    }
 
-#ifdef _WIN64
-    printf("ViewBase at: %llX\n", (UINT_PTR)pViewBase);
-#else
-    printf("ViewBase at: %X\n", (UINT_PTR)pViewBase);
-#endif
+    ~MappedMemory() //RAII destructor - unmap view of section
+    {
+        if (pViewBase) 
+        {
+            NtUnmapViewOfSection(NtCurrentProcess(), pViewBase);
+        }
+        if (hSection) 
+        {
+            CloseHandle(hSection);
+        }
+    }
 
-    ntstatus = NtUnmapViewOfSection(NtCurrentProcess(), pViewBase); //unmap original view
+    PVOID GetBaseAddress() const 
+    {
+        return pViewBase;
+    }
 
-    ntstatus = NtMapViewOfSection(hSection, NtCurrentProcess(), &pViewBase, 0, 0, &cbSectionOffset, &cbViewSize, ViewUnmap, SEC_NO_CHANGE, PAGE_EXECUTE_READ); //remap with SEC_NO_CHANGE
+    template<typename T, typename... Args>      //"placement new" concept using variadic template
+    T* Construct(Args&&... args) 
+    {
+        return new (pViewBase) T(std::forward<Args>(args)...);
+    }
+};
 
-    CloseHandle(hSection);
-
-#ifdef _WIN64
-    printf("Mapped as protected at: %llX (unmodifiable memory)\n", (UINT_PTR)pViewBase);
-#else
-    printf("Mapped as protected at: %X (unmodifiable memory)\n", (UINT_PTR)pViewBase);
-#endif
-
-    delete classPtr; //delete original class memory as its no longer needed
-
-    classPtr = (T)pViewBase; //Set class pointer to viewBase, our class is now 'protected' and cannot have its memory changed or page protections modified
-
-    return TRUE;
-}
-
-/*
-    UnmapProtectedClass - UnmapViewOfFile wrapper
-*/
-bool UnmapProtectedClass(LPCVOID ProtectedClass)
+int main() 
 {
-    return UnmapViewOfFile((LPCVOID)ProtectedClass);
-}
+    const SIZE_T classSize = sizeof(ProtectedClass);
 
-int main()
-{
-    ProtectedClass* protTest = new ProtectedClass(); //allocates a class object on the heap, outside of module's image
+    MappedMemory memory(classSize);     //create the memory-mapped view and construct the object inside it using placement new
+    ProtectedClass* protTest = memory.Construct<ProtectedClass>(100, 500.0f, TRUE);
 
-#ifdef _WIN64
-    printf("protTest original address: %llX\n", (UINT_PTR)protTest);
-#else
-    printf("protTest original address: %X\n", (UINT_PTR)protTest);
-#endif
+    protTest->PrintMembers(); //print initialized values for the sake of showing that we can modify them later if needed by re-mapping
 
-    protTest->GameTickSpeed = 100;
-    protTest->GameEngineGravity = 500.0f;
-    protTest->Invincible = TRUE; //for the sake of easily viewing a '1' in memory instead of a '0'
+    memory.Protect(); //protect the memory from further writes
 
-    MapClassToProtectedClass(protTest); //remap protTest as a protected view
+    printf("\n========= Example of modifying values (using a new instance) =========\n");
 
-    //...attempting to write to protTest members will now throw a write violation, otherwise you can verify manually in a debugger that members cannot be written
-    // if you need to edit the values of the protected class, you can copy its object to a new class pointer, edit those values, then call `MapClassToProtectedClass` on the new pointer and unmap the old one.
+    MappedMemory modifiedMemory(classSize); //create new instance and modify the values
+    ProtectedClass* protTestModified = modifiedMemory.Construct<ProtectedClass>(*protTest); //copy the original values
 
-    protTest->PrintMembers(); //class-member call example after protecting class
+    protTestModified->GameTickSpeed = 1337;   //modify values in the new protected instance
+    protTestModified->GameEngineGravity = 123.0f;
 
-    //example of 'changing values' - create a new class object as a copy of the old one, change values, then call MapClassToProtectedClass again
-    printf("========= Example of modifying values of protTest: ===========\n");
+    memory.~MappedMemory();  //explicitly call destructor to unmap the original view
 
-    ProtectedClass* protTest_modified = new ProtectedClass(); //we will modify this pointer, map it as protected memory, and then set the first class pointer to this one to give the illusion of being able to still modify contents
-    memcpy((void*)protTest_modified, (const void*)protTest, sizeof(*protTest)); //copy class contents to new class object
-
-#ifdef _WIN64
-    printf("protTest_modified  address: %llX\n", (UINT_PTR)protTest_modified);
-#else
-    printf("protTest_modified  address: %X\n", (UINT_PTR)protTest_modified);
-#endif
-
-    protTest_modified->GameTickSpeed = 1337.0f; //...modify whichever member values you need
-    protTest_modified->GameEngineGravity = 123;
-
-    UnmapProtectedClass(protTest); // then free memory through unmapping - clear the original protected view since we're updating its values
-
-    MapClassToProtectedClass(protTest_modified); //often, this will map at the same address which the first class pointer was mapped at, convenient but not always guaranteed
-
-    protTest = protTest_modified; //set the original pointer to the new pointer, incase we need to continue using the original pointer in our code. remember that this must keep multithreading in mind and work atomically, you may want to use critical sections in code referencing these variables
-
-    protTest_modified = nullptr; //we no longer need the 2nd pointer since protTest will point to its address
-
-    protTest->PrintMembers(); //will now print the updated values - at this point, protTest == protTest_modified
-
-    UnmapProtectedClass(protTest); //free memory/unmap again, as we are finished with the program
-    protTest = nullptr; //cleanup
+    protTest = protTestModified; //reassign the original pointer to the modified view
+ 
+    modifiedMemory.Protect();  //protect the new instance
+   
+    protTest->PrintMembers(); //print the modified values using the original pointer to give the illusion of being able to continue using the original pointer
 
     system("pause");
     return 0;
