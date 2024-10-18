@@ -1,7 +1,7 @@
 # RemapProtectedClass
-Remaps a class/struct with `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered or modified after being initialized at runtime. Works with heap memory when creating class or structure pointers. As opposed to working on static memory/image sections, this works for variables which can be set at run-time. The technique works for both 32-bit and 64-bit compilations. This is an experimental technique and should only be seen as a proof of concept currently.  
+Remaps a class/struct with `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered by outside users, or modified often after being initialized at runtime. This works with heap memory when creating new class objects or structure pointers; As opposed to working on static memory/image sections, this technique works for dynamic variables which can be set at run-time. The technique works for both 32-bit and 64-bit compilations. This is an experimental technique and should only be seen as a proof of concept currently, but is confirmed working.   
 
-This example uses a RAII class with the 'placement new' concept to use the mapped view's memory address as the class object, while the RAII aspects handle mapping & unmapping memory. 
+The example code uses a RAII class with the 'placement new' C++ concept to use the mapped view's memory address as the class object, while the `MappedMemory` class' RAII aspects handle mapping & unmapping memory. 
 
 ## How it works:
 1. A class or structure pointer is first created, and its member variables are set to some values.
@@ -33,7 +33,7 @@ To protect a class object, create an instance of the `MappedMemory` class and th
 - Make sure to link `ntdll.lib` under Linker -> Input before compiling.
 - Possibly dangerous in a multi-threaded scenario as we are manipulating pointers and memory on the fly; you may want to use critical sections when accessing members of the 'protected' class.
    
-Thanks to changeofpace for the original self-remapping-code example, as this project is an idea based off of it
+Thanks to changeofpace for the original self-remapping-code example, as this project is an idea based off of it.
 
 ![Example](https://github.com/user-attachments/assets/a9c66139-3f0a-4509-9337-b22c1cf50b67)
 
