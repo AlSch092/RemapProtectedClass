@@ -35,5 +35,5 @@ To protect a class object, create an instance of the `MappedMemory` class and th
    
 Thanks to changeofpace for the original self-remapping-code example, as this project is an idea based off of it.
 
-![Example](https://github.com/user-attachments/assets/a9c66139-3f0a-4509-9337-b22c1cf50b67)
+![Example](https://github.com/user-attachments/assets/ea522fc3-e214-4a86-b5d8-8ed51617c750)
 
