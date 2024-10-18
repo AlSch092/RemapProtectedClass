@@ -73,13 +73,15 @@ public:
 
     ~MappedMemory() //RAII destructor - unmap view of section
     {
+        if (hSection && hSection != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(hSection);
+            hSection = INVALID_HANDLE_VALUE; //since we call the destructor explicitly if modifying the protected classes values, make sure a "double closehandle" doesnt occur to avoid a thrown exception
+        }
+
         if (pViewBase) 
         {
             NtUnmapViewOfSection(NtCurrentProcess(), pViewBase);
-        }
-        if (hSection) 
-        {
-            CloseHandle(hSection);
         }
     }
 
