@@ -1,5 +1,7 @@
 # RemapProtectedClass
-Remaps a class/struct with `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered or modified after being initialized at runtime. Works with heap memory when creating class or structure pointers. As opposed to working on static memory/image sections, this works for variables which can be set at run-time. The technique works for both 32-bit and 64-bit compilations. This is an experimental technique and should only be seen as a proof of concept currently.
+Remaps a class/struct with `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting it from memory modifications and page protection modifications. Ideal for class variables which should not be tampered or modified after being initialized at runtime. Works with heap memory when creating class or structure pointers. As opposed to working on static memory/image sections, this works for variables which can be set at run-time. The technique works for both 32-bit and 64-bit compilations. This is an experimental technique and should only be seen as a proof of concept currently.  
+
+This example uses a RAII class with the 'placement new' concept to use the mapped view's memory address as the class object, while the RAII aspects handle mapping & unmapping memory. 
 
 ## How it works:
 1. A class or structure pointer is first created, and its member variables are set to some values.
@@ -11,11 +13,11 @@ Remaps a class/struct with `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting i
 7. The class pointer's address is set to the mapped view, allowing you to access class members the same way as any normal class pointer
 8. The view is later unmapped when you are finished with the class  
 
-To protect a class, call `MapClassToProtectedClass`. When you are finished with the class, simply call `UnmapProtectedClass`.
+To protect a class object, create an instance of the `MappedMemory` class and then call the `Construct<T>` function with your class pointer. Then call the `Protect` function of the RAII class (`MappedMemory`) to map a view of a section representing your class object. The memory will automatically be unmapped when it goes out of scope, using the `MappedMemory` destructor.
 
 ## Where this shouldn't be used:
 - Classes using inheritance or virtual functions/vtables
-- Complex behaviors such as polymorphism
+- Complex behaviors such as runtime polymorphism
 
 ## Why this works:
 - Class/struct members are treated as offsets to the compiler, and we make a direct copy of the class object into our view, thus we can still access members since member offsets will be identical.
@@ -29,7 +31,7 @@ To protect a class, call `MapClassToProtectedClass`. When you are finished with 
 
 ## Requirements & Warnings:
 - Make sure to link `ntdll.lib` under Linker -> Input before compiling.
-- Possibly dangerous in a multi-threaded scenario as we are manipulating pointers and memory on the fly; you may want to create critical sections when accessing members of the 'protected' class.
+- Possibly dangerous in a multi-threaded scenario as we are manipulating pointers and memory on the fly; you may want to use critical sections when accessing members of the 'protected' class.
    
 Thanks to changeofpace for the original self-remapping-code example, as this project is an idea based off of it
 
