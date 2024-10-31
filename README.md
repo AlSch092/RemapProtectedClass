@@ -4,16 +4,16 @@ Creates a class object inside a mapped view of a section with attributes `SEC_NO
 The example code uses a RAII class with the 'placement new' C++ concept to use the mapped view's memory address as the class object, while the `MappedMemory` class' RAII aspects handle mapping & unmapping memory. 
 
 ## How it works:
-1. A class or structure pointer is first created, and its member variables are set to some values.
+1. A class or structure object is first created, and its member variables are set to some initial values.
 2. A section is created with flags `SEC_COMMIT` + `SEC_NO_CHANGE`
-3. A memory-mapped view is created of this new section with the ViewUnmap enum
-4. Class members are all copied to the view
+3. A memory-mapped view is created of the new section with the ViewUnmap enum
+4. Memory where the class object/struct resides at is copied to the view
 5. The view is then unmapped, and then mapped once more with the `SEC_NO_CHANGE` flag
-6. The original class pointer is deleted/memory freed
-7. The class pointer's address is set to the mapped view, allowing you to access class members the same way as any normal class pointer
+6. The original class object is deleted/has its memory freed
+7. The class pointer's address is set to the mapped view, allowing you to access class members the same way as any normal/"non-protected" class pointer
 8. The view is later unmapped when you are finished with the class  
 
-To protect a class object, create an instance of the `MappedMemory` class and then call the `Construct<T>` function with your class pointer. Then call the `Protect` function of the RAII class (`MappedMemory`) to map a view of a section representing your class object. The memory will automatically be unmapped when it goes out of scope, using the `MappedMemory` destructor.
+To protect a class object, create an instance of the `MappedMemory` class and then call the `Construct<T>` function with your class type and object. Then call the `Protect` function of the `MappedMemory` object to map a view of a section representing your class object. The memory will automatically be unmapped when it goes out of scope due to the `MappedMemory` destructor.
 
 ## Where this shouldn't be used:
 - Classes using inheritance or virtual functions/vtables
