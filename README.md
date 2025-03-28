@@ -20,7 +20,7 @@ To protect a class object, create an instance of the `MappedMemory` class and th
 - Complex behaviors such as runtime polymorphism
 
 ## Why this works:
-- Class/struct members are treated as offsets to the compiler, and we make a direct copy of the class object into our view, thus we can still access members since member offsets will be identical. we are essentially mapping a section with `SEC_NO_CHANGE`, copying our class object it it, and pointing the class object's pointer to that mapped section (and freeing any original memory of the class object)  
+- Class/struct members are treated as offsets to the compiler, and we make a direct copy of the class object into our view, thus we can still access members since member offsets will be identical. we are essentially mapping a section with `SEC_NO_CHANGE`, copying our class object to it, and pointing the class object's pointer to that mapped section (and freeing any original memory of the class object)  
 
 ## Modifying values after mapping:
 - It is possible to change 'protected' member values if necessary:
