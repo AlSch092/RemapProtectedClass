@@ -1,7 +1,7 @@
 # MapProtectedClass
-Manipulates memory to create a mapped view of a section with attributes `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting a class/struct object from memory modifications and page protection modifications. Ideal for classes containing variables which should not be tampered by outside users, or modified often after being set at runtime. This works with heap memory when creating new class objects or structure pointers; As opposed to working on static memory/image sections, this technique works for memory which can be set at runtime. The technique works for both 32-bit and 64-bit compilations. The  technique has been tested in user-facing software with no issues. It is ideal for things like "settings" set at runtime in anti-cheat or anti-malware systems, as it prevents both memory writes and page protection modifications.
+Manipulates memory to create a mapped view of a section with attributes `SEC_NO_CHANGE` and `PAGE_EXECUTE_READ`, protecting a class/struct object from memory modifications and page protection modifications. Ideal for classes containing variables which should not be tampered by outside users, or modified often after being set at runtime. This works with heap memory when creating new class/struct objects; As opposed to working on static memory/image sections, this technique works for memory which can be set at runtime residing in the heap. The technique works for both 32-bit and 64-bit compilations. It has been tested in user-facing software with no issues. It is ideal for things like "settings" set at runtime in anti-cheat or anti-malware systems, as it prevents both memory writes and page protection modifications.
 
-The example code uses a RAII class with the 'placement new' C++ concept to use the mapped view's memory address as the class object, while the `MappedMemory` class' RAII aspects handle mapping & unmapping memory. 
+The example code uses a RAII class with the 'placement new' C++ concept to use the mapped view's memory address as the class object's address, while the `MappedMemory` class' RAII aspects handle mapping & unmapping memory. 
 
 ## How it works:
 1. A class or structure object is first created, and its member variables are set to some initial values.
@@ -20,7 +20,7 @@ To protect a class object, create an instance of the `MappedMemory` class and th
 - Complex behaviors such as runtime polymorphism
 
 ## Why this works:
-- Class/struct members are treated as offsets to the compiler, and we make a direct copy of the class object into our view, thus we can still access members since member offsets will be identical.
+- Class/struct members are treated as offsets to the compiler, and we make a direct copy of the class object into our view, thus we can still access members since member offsets will be identical. we are essentially mapping a section with `SEC_NO_CHANGE`, copying our class object it it, and pointing the class object's pointer to that mapped section (and freeing any original memory of the class object)  
 
 ## Modifying values after mapping:
 - It is possible to change 'protected' member values if necessary:
